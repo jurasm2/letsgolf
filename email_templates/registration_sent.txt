@@ -1,0 +1,7 @@
+Na webu http://www.letsgolf.cz/ bylo zaregistrováno odeslání formuláře pro registraci na premium turnaj.
+
+Jméno: [**REG_NAME**]
+Příjmení: [**REG_SURNAME**]
+Reg. číslo ČGF: [**REG_CGF_NUMBER**]
+Počet osob: [**REG_NUM_OF_PERSONS**]
+Email: [**REG_EMAIL**]
