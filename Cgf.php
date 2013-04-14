@@ -1500,7 +1500,8 @@ class Cgf {
 			'[**REG_SURNAME**]' => $this->_getDataItem($postData, 'prijmeni'),
 			'[**REG_CGF_NUMBER**]' => $this->_getDataItem($postData, 'reg'),
 			'[**REG_NUM_OF_PERSONS**]' => $this->_getDataItem($postData, 'pocet_osob'),
-			'[**REG_EMAIL**]' => $this->_getDataItem($postData, 'email')
+			'[**REG_EMAIL**]' => $this->_getDataItem($postData, 'email'),
+			'[**TOUR_NAME**]' => $this->_getDataItem($postData, 'turnaj')
 		);
 		
 		foreach ($replacements as $pattern => $content) {
