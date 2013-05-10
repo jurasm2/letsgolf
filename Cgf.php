@@ -221,7 +221,7 @@ class Cgf {
             // import results
             $assocCateogries = $this->dbModel->getAssocCategoriesOfSingleTournament($tournamentId);
             
-            
+	    
             $numOfResults = $this->importResults($assocCateogries, $tournament['manual_entry']);
 
 //            print_r($numOfResults);
@@ -647,6 +647,7 @@ class Cgf {
                         
                         $results = $isManualEntry ? $this->dbModel->formatPostDataAsResults($categoryId, $_POST) : $this->soapModel->getResults($categoryId);
 
+			
                         if (!empty($results) && $this->dbModel->validateResults($results)) {
                             
                             foreach ($results as $result) {
@@ -655,9 +656,12 @@ class Cgf {
                                 $playerId = NULL;
                                 $player = NULL;
                                 
+				if (($result['HCP_BEFORE'] <= 0) && !$isManualEntry) continue;
+				
                                 // !!!!!!!!!!!!!!!!!!!
                                 $result['MEMBERNUMBER'] = $result['MEMBERNUMBER'] == 801030 ? 431303 : $result['MEMBERNUMBER'];
                                 
+								
                                 // does the player exist?
                                 // try to find him by member number
                                 if (isset($result['MEMBERNUMBER'])) {
@@ -683,13 +687,13 @@ class Cgf {
                                         $playerData['surname%s']  =  $result['surname'];
                                     }
                                     
-//                                    print_r($playerData);
-//                                    die();
                                     
                                     
                                     $playerId = $this->dbModel->createPlayer($playerData);
                                 }
                                 
+//				print_r($playerData);
+//				die();
                                 
                                 
                                 // add points only if
@@ -854,7 +858,7 @@ class Cgf {
             <table class="ladder-table">
               <? foreach ($chartData as $player): $i++; ?>
               <tr>
-                  <td class="place"><?= $i; ?>.</td><td><?= $player['full_name']; ?></td><td class="points"><?= $player[$type]; ?> b</td>
+                  <td class="place"><?= $i; ?>.</td><td><?= $player['full_name']; ?></td><td class="points"><?= $player[$type] ?: '-'; ?> b</td>
               </tr>
               <? endforeach; ?>
             </table>
@@ -1154,36 +1158,59 @@ class Cgf {
         
         $tournament = $this->dbModel->getTournamentById($tournamentId);
         
-        $results = $this->dbModel->getTournamentResults($tournamentId);
-        $categories = $this->dbModel->getTournamentCategories($tournamentId);
-        
-        if (!empty($results) && !empty($categories)): ?>
-                
-            <? foreach ($results as $categoryId => $catResults): ?>
-                <? if (!empty($catResults)): ?>
-                
-                    <div class="ddTable">
-                        <h2><?= $categories[$categoryId]['name']?></h2>
-                            <table class="detail_hrace" width="100%" cellspacing="1" cellpadding="0">
-                        
-                                <tr><th class="tporadi">Pořadí</th><th class="tname">Jméno hráče</th><th class="tcislo">Číslo</th><th class="tpts">Brutto</th><th class="tpts">Netto</th><th class="tpts tall">Celkem</th></tr>
-                                
-                                        
-                                <? $i = 0; foreach ($catResults as $playerId => $playerResults): $i++; ?>                
-                                    <tr <? if (!$pdfMode && ($playerResults['hcp_status'] != 1)): ?>class="strike"<? endif; ?><? if ($i%2): ?>style="background-color: #EDEDED;"<? endif; ?>><td class="tporadi"><?= $i.'.' ?></td><td class="tname"><strong><?= $playerResults['full_name']; ?><? if (($pdfMode) && ($playerResults['hcp_status'] != 1)): ?>*<? endif; ?></strong></td><td class="tcislo"><?= $playerResults['member_number']; ?></td><td class="tpts"><?= $playerResults['letsgolf_brutto']; ?></td><td class="tpts"><?= $playerResults['letsgolf_netto']; ?></td><td class="tpts all"><?= $playerResults['letsgolf_total']; ?></td></tr>
-                                <? endforeach; ?>
-                            
-                            </table>
-                    </div>
-                        
-                <? endif; ?>
-            <? endforeach; ?>            
-                        <? if ($pdfMode): ?>
-                        <br />
-                        * - neaktivní HCP
-                        <? endif; ?>
-        <? endif;
+	if ($tournament) {
+	
+		$results = $this->dbModel->getTournamentResults($tournamentId, $tournament['premium']);
+		$categories = $this->dbModel->getTournamentCategories($tournamentId);
 
+		if (!empty($results) && !empty($categories)): ?>
+
+		    <? foreach ($results as $categoryId => $catResults): ?>
+			<? if (!empty($catResults)): ?>
+
+			    <div class="ddTable">
+				<h2><?= $categories[$categoryId]['name']?></h2>
+				    <table class="detail_hrace" width="100%" cellspacing="1" cellpadding="0">
+
+					<tr>
+						<th class="tporadi">Pořadí</th>
+						<th class="tname">Jméno hráče</th>
+						<th class="tcislo">Číslo</th>
+						<? if ($tournament['premium']): ?>
+						<th class="tpts">Netto</th>
+						<? else: ?>
+						<th class="tpts">Brutto</th>
+						<th class="tpts">Netto</th>
+						<th class="tpts tall">Celkem</th>
+						<? endif; ?>
+					</tr>
+
+
+					<? $i = 0; foreach ($catResults as $playerId => $playerResults): $i++; ?>                
+					    <tr <? if (!$pdfMode && ($playerResults['hcp_status'] != 1)): ?>class="strike"<? endif; ?><? if ($i%2): ?>style="background-color: #EDEDED;"<? endif; ?>>
+						    <td class="tporadi"><?= $i.'.' ?></td>
+						    <td class="tname"><strong><?= $playerResults['full_name']; ?><? if (($pdfMode) && ($playerResults['hcp_status'] != 1)): ?>*<? endif; ?></strong></td>
+						    <td class="tcislo"><?= $playerResults['member_number']; ?></td>
+						    <? if ($tournament['premium']): ?>
+						    <td class="tpts"><?= $playerResults['letsgolf_premium_netto']; ?></td>
+						    <? else: ?>
+						    <td class="tpts"><?= $playerResults['letsgolf_brutto']; ?></td>
+						    <td class="tpts"><?= $playerResults['letsgolf_netto']; ?></td>
+						    <td class="tpts all"><?= $playerResults['letsgolf_total']; ?></td></tr>
+						    <? endif; ?>
+					<? endforeach; ?>
+
+				    </table>
+			    </div>
+
+			<? endif; ?>
+		    <? endforeach; ?>            
+				<? if ($pdfMode): ?>
+				<br />
+				* - neaktivní HCP
+				<? endif; ?>
+		<? endif;
+	}
     }
     
     public function setTournamentAsSent($tournamentId) {

@@ -1132,7 +1132,7 @@ class DbModel {
         
     }
     
-    public function getTournamentResults($tournamentId) {
+    public function getTournamentResults($tournamentId, $premium = FALSE) {
         
         return $this->connection->query('SELECT
                                         [r].*, [p].*, [c].[name] as [categoryname]
@@ -1155,9 +1155,13 @@ class DbModel {
                                         ORDER BY
                                             [c].[category_id] ASC,
                                             [r].[hcp_status] DESC,
+					    %if
+					    [r].[letsgolf_premium_netto] DESC,
+					    %else
                                             [r].[letsgolf_total] DESC,
+					    %end
                                             [r].[hcp_before] ASC
-                                    ', $tournamentId)->fetchAssoc('category_id,player_id');
+                                    ', $tournamentId, $premium)->fetchAssoc('category_id,player_id');
         
     }
     

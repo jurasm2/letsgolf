@@ -59,7 +59,7 @@ class SoapModel {
     
     
     
-    public function getTournamentCategories($tournamentId, $catFilter = array('Nejlepší žena')) {
+    public function getTournamentCategories($tournamentId, $catFilter = array('Nejlepší žena', 'Brutto stableford')) {
         $res = $this->_executeCommand('GetTournamentCategories', array('IdTournament' => $tournamentId), 'cgsTrounament.GetTournCategories');
         
         if (!empty($catFilter)) {            
