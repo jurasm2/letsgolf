@@ -430,42 +430,42 @@ class ChartBuilder {
             foreach ($results as $playerId => $categories) {
                 
                 $chart[$playerId] = array(
-                                        'total'             =>  0,
-                                        'number_of_tours'   =>  0
+                                        'total'			    =>  0,
+                                        'number_of_tours'	    =>  0,
+					'bonificated_course'	    =>  0
                 );
                 $tourCounter = 0;
                 $foreignCourseIncluded = FALSE;
                 
                 if (!empty($categories)) {
                     
-                    // check, if there is at most 7 tournaments and at most 1 major
+                    // check, if there is at most 5 tournaments and at most 1 major
                     foreach ($categories as $tournamentId => $category) {
                         
+			$chart[$playerId]['number_of_tours'] += 1;
+			
                         if ($tourCounter < 5) {
-                        
 			    
-//			    if ($_SERVER['REMOTE_ADDR'] == '194.228.13.21') {
-//				
-//				print_r($category);
-//				die();
-//				
-//			    }
-			    
-			    
-                            if ($category['foreign_course'] && !$foreignCourseIncluded) {
-                                $foreignCourseIncluded = TRUE;
-                                $chart[$playerId]['total'] += $category['letsgolf_premium_netto'];
-                                $chart[$playerId]['number_of_tours'] += 1;
-                                $tourCounter++;
-                            } else if (!$category['foreign_course']) {
-                                $chart[$playerId]['total'] += $category['letsgolf_premium_netto'];
-                                $chart[$playerId]['number_of_tours'] += 1;
-                                $tourCounter++;
-                            }
-                        
-                        } else {
-                            $chart[$playerId]['number_of_tours'] += 1;
-                        }
+			    // if tournamnent is played on foreign course
+			    if ($category['foreign_course']) {
+				// and has not been included yet
+				if (!$foreignCourseIncluded) {
+				    // include it (x1.5) USE letsgolf_premium_netto
+				    $foreignCourseIncluded = TRUE;
+				    $chart[$playerId]['total'] += $category['letsgolf_premium_netto'];
+				    $chart[$playerId]['bonificated_course'] = sprintf('%s:%s', $tournamentId, $category['category_id']);
+				} else {
+				    $chart[$playerId]['total'] += $category['letsgolf_netto'];
+				}
+				
+			    } else {
+				// tournament is NOT played on foreign course
+				// use letsgolf_netto
+				$chart[$playerId]['total'] += $category['letsgolf_netto'];
+			    }
+			    $tourCounter++;
+	
+                        } 
                         
                     }
               
