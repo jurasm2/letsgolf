@@ -997,8 +997,6 @@ class Cgf {
         
         $playerCard = $this->dbModel->getPlayerCard($playerId);
         
-        //print_r($playerCard);
-        
         if (!empty($playerCard)):
             
         $player = $playerCard[0];

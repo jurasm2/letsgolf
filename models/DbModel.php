@@ -923,7 +923,7 @@ class DbModel {
     }
     
     public function getPlayerCard($playerId, $year = NULL) {
-        
+
         if ($year === NULL) {
             $year = date('Y');
         }
