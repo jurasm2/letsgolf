@@ -1036,11 +1036,17 @@ class Cgf {
         $player = $playerCard[0];
             
         ?>
+	
+	<div>
+	    Číslo hráče: <strong><?= $player['member_number']; ?></strong> - Jméno hráče: <strong><?= $player['full_name']; ?></strong>
+	</div>
+	
+	<? if ($classicPlayerCard): ?>
         <table class="detail_hrace classic">
             <tbody>
                 <tr>
                     <td colspan="2">
-                            Číslo hráče: <strong><?= $player['member_number']; ?></strong> - Jméno hráče: <strong><?= $player['full_name']; ?></strong>
+                            LG Classic
                     </td>
                 </tr>
                 <tr>
@@ -1057,12 +1063,14 @@ class Cgf {
                 <? endforeach; ?>
             </tbody>
 	</table>
+	<? endif; ?>
 	
+	<? if ($premiumPlayerCard): ?>
 	<table class="detail_hrace premium">
 	    <tbody>
                 <tr>
                     <td colspan="2">
-                            Číslo hráče: <strong><?= $player['member_number']; ?></strong> - Jméno hráče: <strong><?= $player['full_name']; ?></strong>
+                            LG Premium
                     </td>
                 </tr>
                 <tr>
@@ -1078,7 +1086,9 @@ class Cgf {
                 <? endforeach; ?>
             </tbody>
         </table>
-        
+        <? endif; ?>
+	
+	
         <? else: ?>
         <p>Výsledky budou k dispozici po dohrání prvního turnaje.</p>
         <? endif; 
