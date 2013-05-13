@@ -1478,6 +1478,29 @@ class DbModel {
     }
     
     
+    public function getSingleChartResult($playerId, $year) {
+	
+	if ($year === NULL) {
+            $year = date('Y');
+        }
+	
+	return $this->connection->fetch('SELECT 
+					    [ch].*
+					 FROM 
+					    [cgf_charts] [ch]
+					 JOIN 
+					    [cgf_seasons] [s]
+					 USING 
+					    ([season_id]) 
+					 WHERE
+					    [s].[year] = %i AND
+					    [ch].[player_id] = %i
+					    ', $year, $playerId);
+	
+    }
+    
+    
+    
     /* IMPORT COURSES*/
     
     public function getOldMessages() {
