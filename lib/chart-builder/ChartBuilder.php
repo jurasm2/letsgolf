@@ -144,7 +144,8 @@ class ChartBuilder {
                                                 [r].[letsgolf_netto],
                                                 [r].[letsgolf_premium_netto],
                                                 [t].[tournament_id],
-                                                [t].[type]
+                                                [t].[type],
+						[t].[foreign_course]
                                                 FROM 
                                                     [cgf_results] [r]
                                                 JOIN
@@ -442,6 +443,15 @@ class ChartBuilder {
                         
                         if ($tourCounter < 5) {
                         
+			    
+//			    if ($_SERVER['REMOTE_ADDR'] == '194.228.13.21') {
+//				
+//				print_r($category);
+//				die();
+//				
+//			    }
+			    
+			    
                             if ($category['foreign_course'] && !$foreignCourseIncluded) {
                                 $foreignCourseIncluded = TRUE;
                                 $chart[$playerId]['total'] += $category['letsgolf_premium_netto'];
