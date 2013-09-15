@@ -965,50 +965,88 @@ class Cgf {
     }
     
     
-    private function _renderPlayersCardRow($index, $row) {
+    private function _renderPlayersCardRow($index, $row, $type, $bonificatedTournament = NULL) {
         
         $styleTr = '';
         $styleTd = '';
-        $odd = $index % 2; 
-        
-        if ($odd) {
-            $styleTr = 'style="background-color: #EDEDED;"';
-        }
-
-        if (in_array($row['type'], array('major1', 'major2', 'major3', 'major4'))) {
-            $styleTd = 'style="color: #920000;"';
-        }
+//        $odd = $index % 2; 
+//        
+//        if ($odd) {
+//            $styleTr = 'style="background-color: #EDEDED;"';
+//        }
+//
+//        if (in_array($row['type'], array('major1', 'major2', 'major3', 'major4'))) {
+//            $styleTd = 'style="color: #920000;"';
+//        }
         
         ?>
         
         <tr>
             <td><strong <?=$styleTr?>><?= date('j.n.Y', strtotime($row['play_date'])) ?></strong></td>
             <td <?=$styleTd?>><?= $row['coursename'] ?><? if (in_array($row['type'], array('major1', 'major2', 'major3', 'major4'))): ?> - <span style="color: #920000"><?= $row['name']; ?></span><? endif; ?></td>
+	<? if ($type == 'classic'): ?>
+	    
             <td <?=$styleTd?>><?= $row['letsgolf_brutto'] ?></td>
             <td <?=$styleTd?>><?= $row['letsgolf_netto'] ?></td>
-            <td <?=$styleTd?>><?= $row['letsgolf_total'] ?></td>
+	    
+	<? elseif ($type == 'premium'): ?>	    
+	    
+	    <? if ($bonificatedTournament == $row['tournament_id']): ?>
+	    <td <?=$styleTd?>><?= $row['letsgolf_premium_netto'] ?></td>
+	    <? else: ?>
+	    <td <?=$styleTd?>><?= $row['letsgolf_netto'] ?></td>
+	    <? endif; ?>
+	    
+	<? endif; ?>
         </tr>
         
         <?
     }
     
     
-    public function renderPlayersCard($playerId) {
+ public function renderPlayersCard($playerId) {
         
         $playerCard = $this->dbModel->getPlayerCard($playerId);
         
-        //print_r($playerCard);
-        
+	
+	// try to check, if premium there is any bonificated tournament (in premium chart)
+	$cr = $this->dbModel->getSingleChartResult($playerId);
+	
+	$bonificatedTournament = NULL;
+	if ($cr['premium_meta'] && @unserialize($cr['premium_meta'])) {
+	    $_t = @unserialize($cr['premium_meta']);
+	    
+	    $_te = explode(":", $_t['bonificated_course']);
+	    if (is_array($_te) && count($_te) == 2) {
+		$bonificatedTournament = $_te[0];
+	    }
+	}
+	
+	
+	$classicPlayerCard = array_filter($playerCard, function($tour) {
+	    return $tour['premium'] == 0;
+	});
+	
+	$premiumPlayerCard = array_filter($playerCard, function($tour) {
+	    return $tour['premium'] == 1;
+	});
+	
         if (!empty($playerCard)):
             
         $player = $playerCard[0];
             
         ?>
-        <table class="detail_hrace" width="100%" cellspacing="1" cellpadding="0">
+	
+	<div>
+	    Číslo hráče: <strong><?= $player['member_number']; ?></strong> - Jméno hráče: <strong><?= $player['full_name']; ?></strong>
+	</div>
+	
+	<? if ($classicPlayerCard): ?>
+        <table class="detail_hrace classic">
             <tbody>
                 <tr>
                     <td colspan="2">
-                            Číslo hráče: <strong><?= $player['member_number']; ?></strong> - Jméno hráče: <strong><?= $player['full_name']; ?></strong>
+                            LG Classic
                     </td>
                 </tr>
                 <tr>
@@ -1016,17 +1054,41 @@ class Cgf {
                     <th>Hřiště</th>
                     <th>Brutto</th>
                     <th>Netto</th>
-                    <th>Celkem</th>
                 </tr>
                 
-                <? foreach ($playerCard as $key => $row): ?>
+                <? foreach ($classicPlayerCard as $key => $row): ?>
                 
-                <?= $this->_renderPlayersCardRow($key, $row); ?>
+                <?= $this->_renderPlayersCardRow($key, $row, 'classic'); ?>
+                
+                <? endforeach; ?>
+            </tbody>
+	</table>
+	<? endif; ?>
+	
+	<? if ($premiumPlayerCard): ?>
+	<table class="detail_hrace premium">
+	    <tbody>
+                <tr>
+                    <td colspan="2">
+                            LG Premium
+                    </td>
+                </tr>
+                <tr>
+                    <th width="100">Datum turnaje</th>
+                    <th>Hřiště</th>
+                    <th>Netto</th>
+                </tr>
+                
+                <? foreach ($premiumPlayerCard as $key => $row): ?>
+                
+                <?= $this->_renderPlayersCardRow($key, $row, 'premium', $bonificatedTournament); ?>
                 
                 <? endforeach; ?>
             </tbody>
         </table>
-        
+        <? endif; ?>
+	
+	
         <? else: ?>
         <p>Výsledky budou k dispozici po dohrání prvního turnaje.</p>
         <? endif; 
