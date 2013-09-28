@@ -948,18 +948,14 @@ class DbModel {
                                         [messages] [m]
                                     ON
                                         [m].[id] = [t].[course_id]
-                                    JOIN
+                                    LEFT JOIN
                                         [cgf_quarters] [q]
                                     USING
                                         ([quarter_id])
-                                    JOIN
-                                        [cgf_seasons] [s]
-                                    USING
-                                        ([season_id])
                                     WHERE
-                                        [p].[player_id] =%i
+                                        [p].[player_id] = %i
                                         AND
-                                        [s].[year] = %i
+                                        YEAR([t].[play_date]) = %i
                                     ORDER BY 
                                         [t].[play_date] DESC
                                 ', $playerId, $year);
