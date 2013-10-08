@@ -14,6 +14,43 @@ class Cgf {
     public $dbModel;
     private $chartBuilder;
 
+    public static $fsPointTable = array(
+        'common' => array(
+            1   => 15,
+            2   => 12,
+            3   => 10,
+            4   => 8,
+            5   => 6,
+            6   => 5,
+            7   => 4,
+            8   => 3,
+            9   => 2,
+            10  => 1,
+        ),
+        'final' => array(
+            1   => 30,
+            2   => 25,
+            3   => 20,
+            4   => 17,
+            5   => 16,
+            6   => 15,
+            7   => 14,
+            8   => 13,
+            9   => 12,
+            10  => 11,
+            11  => 10,
+            12  => 9,
+            13  => 8,
+            14  => 7,
+            15  => 6,
+            16  => 5,
+            17  => 4,
+            18  => 3,
+            19  => 2,
+            20  => 1,
+        ),
+    );
+
     public function __construct($dbOptions = array()) {
 
 	global $DBIP, $DBHOST, $DBPASS, $DBNAME;
@@ -372,6 +409,7 @@ class Cgf {
         $charts['major3'] = $this->chartBuilder->getQuarterChart(3, $year);
         $charts['major4'] = $this->chartBuilder->getQuarterChart(4, $year);
         $charts['premium'] = $this->chartBuilder->getPremiumChart($year);
+        $charts['fs'] = $this->chartBuilder->getFallSeriesChart($year);
 
         return $this->saveCharts($charts);
 
@@ -479,7 +517,7 @@ class Cgf {
                 foreach ($playersInSeason as $playerId => $val) {
 
                     $scoreItems = array(
-                                    'common', 'netto', 'brutto', 'major1', 'major2', 'major3', 'major4', 'premium'
+                                    'common', 'netto', 'brutto', 'major1', 'major2', 'major3', 'major4', 'premium', 'fs'
                     );
 
                     $chartDataItem = array(
@@ -640,13 +678,12 @@ class Cgf {
 
                 if (!empty($categories)) {
 
+
                     foreach ($categories as $categoryId => $category) {
 
                         $results = $isManualEntry ? $this->dbModel->formatPostDataAsResults($categoryId, $_POST) : $this->soapModel->getResults($categoryId);
 
-
-
-                        if (!empty($results) && $this->dbModel->validateResults($results)) {
+                        if (!empty($results) /*&& $this->dbModel->validateResults($results)*/) {
 
                             foreach ($results as $result) {
                                 $playerData = array();
@@ -654,7 +691,7 @@ class Cgf {
                                 $playerId = NULL;
                                 $player = NULL;
 
-				if (($result['HCP_BEFORE'] <= 0) && !$isManualEntry) continue;
+                                if (($result['HCP_BEFORE'] <= 0) && !$isManualEntry) continue;
 
                                 // !!!!!!!!!!!!!!!!!!!
                                 $result['MEMBERNUMBER'] = $result['MEMBERNUMBER'] == 801030 ? 431303 : $result['MEMBERNUMBER'];
@@ -702,20 +739,42 @@ class Cgf {
 
                                     $points = $this->dbModel->parsePoints($result['SCR1'], $category);
 
+
+                                    // compute fall series points
+                                    $letsgolfFs = 0;
+
+
+                                    if (isset($result['letsgolf_fs']) && trim($result['letsgolf_fs']) != '') {
+                                        // points inserted manually
+                                        $letsgolfFs = (int) $result['letsgolf_fs'];
+                                    } else {
+                                        // automatic (cgf)
+
+//                                        print_r($category);
+//                                        echo 'Died in ' . __METHOD__ . ' in line: ' . __LINE__;
+//                                        die();
+                                        $letsgolfFs = $this->computeFsPoints($result['ORDER_TO'],
+                                                                             ($category['type'] == 'fs_final') ? 'final' : 'common');
+                                    }
+
+//                                    var_dump($letsgolfFs);
+//                                    echo 'Died in ' . __METHOD__ . ' in line: ' . __LINE__;
+//                                    die();
 //                                    var_dump($points);
 //                                    die();
                                     // player id is set
                                     $resultData = array(
                                                         'category_id%i'     =>  $categoryId,
                                                         'player_id%i'       =>  $playerId,
-                                                        'order_from%i'      =>  $result['ORDER_FROM'],
-                                                        'order_to%i'        =>  $result['ORDER_TO'],
+                                                        'order_from%iN'     =>  $result['ORDER_FROM'],
+                                                        'order_to%iN'       =>  $result['ORDER_TO'],
                                                         'netto%f'           =>  $points['netto'],
                                                         'brutto%f'          =>  $points['brutto'],
                                                         'letsgolf_netto%f'  =>  $points['letsgolf_netto'],
                                                         'letsgolf_brutto%f' =>  $points['letsgolf_brutto'],
                                                         'letsgolf_total%f'  =>  $points['letsgolf_netto'] + $points['letsgolf_brutto'],
                                                         'letsgolf_premium_netto%f' => $points['letsgolf_premium_netto'],
+                                                        'letsgolf_fs%f'     =>  $letsgolfFs,
                                                         'hcp_status%i'      =>  ($result['HCPSTATUS'] != 'EGANOACTIVE'),
                                                         'hcp_before%f'      =>  $result['HCP_BEFORE'],
                                                         'hcp_after%f'       =>  $result['HCP_RES']
@@ -753,6 +812,10 @@ class Cgf {
 
     }
 
+
+    protected function computeFsPoints($order, $type = 'common') {
+        return array_key_exists($order, self::$fsPointTable[$type]) ? self::$fsPointTable[$type][$order] : 0;
+    }
 
     public function importTournamentCategories($validTournaments) {
 
@@ -867,11 +930,13 @@ class Cgf {
 
 
     public function renderCompactSingleChartData($chartData, $type) {
+        $type = $type == 'fallSeries' ? 'fs' : $type;
+        $slug = $type == 'fs' ? 'fall-series/' : '';
         if(!empty($chartData)): ?>
             <table class="ladder-table">
               <? foreach ($chartData as $player): $i++; ?>
               <tr>
-                  <td class="place"><?= $i; ?>.</td><td><?= $player['full_name']; ?></td><td class="points"><?= $player[$type] ?: 0; ?> b</td>
+                  <td class="place"><?= $i; ?>.</td><td><a href="/<?= $slug; ?>detail-hrace?id=<?= $player['player_id'] ?>"><?= $player['full_name']; ?></a></td><td class="points"><?= $player[$type] ?: 0; ?> b</td>
               </tr>
               <? endforeach; ?>
             </table>
@@ -995,6 +1060,10 @@ class Cgf {
 	    <td <?=$styleTd?>><?= $row['letsgolf_netto'] ?></td>
 	    <? endif; ?>
 
+        <? elseif ($type == 'fs'): ?>
+
+	    <td <?=$styleTd?>><?= $row['letsgolf_fs'] ?></td>
+
 	<? endif; ?>
         </tr>
 
@@ -1027,6 +1096,12 @@ class Cgf {
 
 	$premiumPlayerCard = array_filter($playerCard, function($tour) {
 	    return $tour['premium'] == 1;
+	});
+
+        $fsPlayerCard = array_filter($playerCard, function($tour) {
+            // filter all tours older than 29.9.2013
+            $startOfFs = new \DateTime('2013-09-28');
+            return $tour['play_date'] >= $startOfFs;
 	});
 
         if (!empty($playerCard)):
@@ -1088,6 +1163,30 @@ class Cgf {
         </table>
             </div>
         <? endif; ?>
+
+        <? if ($fsPlayerCard): ?>
+        <div class="ddTable">
+            <h3>LG Fall Series</h3>
+
+        <table class="detail_hrace" width="100%" cellspacing="1" cellpadding="0">
+
+            <tbody>
+
+                <tr>
+                    <th width="150">Datum turnaje</th>
+                    <th>Hřiště</th>
+                    <th width="150">Body</th>
+                </tr>
+
+                <? foreach ($fsPlayerCard as $key => $row): ?>
+
+                <?= $this->_renderPlayersCardRow($key, $row, 'fs'); ?>
+
+                <? endforeach; ?>
+            </tbody>
+	</table>
+        </div>
+	<? endif; ?>
 
 
         <? else: ?>

@@ -3,7 +3,8 @@
 class ChartBuilder {
 
     const LG_CLASSIC = 1,
-          LG_PREMIUM = 2;
+          LG_PREMIUM = 2,
+          LG_FALL_SERIES = 3;
 
     private $connection;
 
@@ -132,17 +133,26 @@ class ChartBuilder {
      * @param type $includedTypes
      * @param type $excludedTypes
      * @param type $getSimplyAssociatedResult
+     * @param type $orderDirection
      * @return type
      */
-    private function _getResults($catIds, $orderBy = 'letsgolf_total', $includedTypes = NULL, $excludedTypes = NULL, $getSimplyAssociatedResult = FALSE) {
+    private function _getResults($catIds,
+                                 $orderBy = 'letsgolf_total',
+                                 $includedTypes = NULL,
+                                 $excludedTypes = NULL,
+                                 $getSimplyAssociatedResult = FALSE,
+                                 $orderDirection = 'DESC') {
 
-        $result = $this->connection->query('SELECT
+        $result = $this->connection->query("SELECT
                                                 [r].[player_id],
                                                 [r].[category_id],
                                                 [r].[letsgolf_total],
                                                 [r].[letsgolf_brutto],
                                                 [r].[letsgolf_netto],
                                                 [r].[letsgolf_premium_netto],
+                                                [r].[letsgolf_fs],
+                                                [r].[order_from],
+                                                [r].[order_to],
                                                 [t].[tournament_id],
                                                 [t].[type],
 						[t].[foreign_course]
@@ -167,8 +177,8 @@ class ChartBuilder {
                                                     [t].[type] NOT IN %in
                                                     %end
                                                 ORDER BY
-                                                    [r].%n DESC
-                                            ', $catIds, ($includedTypes != NULL), $includedTypes, ($excludedTypes != NULL), $excludedTypes, $orderBy);
+                                                    [r].%n $orderDirection
+                                            ", $catIds, ($includedTypes != NULL), $includedTypes, ($excludedTypes != NULL), $excludedTypes, $orderBy);
 
 
         return $result->fetchAssoc($getSimplyAssociatedResult ? 'player_id' : 'player_id,tournament_id');
@@ -188,6 +198,8 @@ class ChartBuilder {
                 $attrib = 'letsgolf_brutto'; break;
             case 'premium':
                 $attrib = 'letsgolf_premium_netto'; break;
+            case 'fs':
+                $attrib = 'letsgolf_fs'; break;
         }
 
 
@@ -212,6 +224,13 @@ class ChartBuilder {
         return $this->_getResults($catIds,  $this->_translateOrderBy($mode), array('final'), NULL, TRUE);
     }
 
+    private function _getResultsByFSCategories($catIds) {
+        return $this->_getResults($catIds,  $this->_translateOrderBy('fs'), NULL, array('fs_final'));
+    }
+
+    private function _getFinalResultsByFSCategories($catIds) {
+        return $this->_getResults($catIds,  $this->_translateOrderBy('fs'), array('fs_final'), NULL, TRUE);
+    }
 
     /**
      * Best 7 tournament (max 1 major among) + final
@@ -381,6 +400,9 @@ class ChartBuilder {
             case self::LG_PREMIUM:
                 $where['t.premium%i'] = 1;
                 break;
+            case self::LG_FALL_SERIES:
+                $where[] = "[t].[play_date] >= '2013-09-29'";
+                break;
         }
 
         return $this->connection->query('SELECT [c].*, [t].[foreign_course]
@@ -536,5 +558,91 @@ class ChartBuilder {
             $res = $b['number_of_tours'] - $a['number_of_tours'];
         }
         return $res;
+    }
+
+    public function fsSortMethod($a, $b) {
+        $res = $b['total'] - $a['total'];
+        if ($res == 0) {
+            $res = $b['final'] - $a['final'];
+            if ($res == 0) {
+                $res = $b['number_of_winnings'] - $a['number_of_winnings'];
+                if ($res == 0) {
+                    $res = $b['number_of_tournaments'] - $a['number_of_tournaments'];
+                }
+            }
+        }
+        return $res;
+    }
+
+    public function getFallSeriesChart($year = NULL) {
+        if ($year === NULL) {
+            $year = date('Y');
+        }
+
+        $categories = $this->_getAllCategoriesInSeason($year, NULL, FALSE, self::LG_FALL_SERIES);
+
+        $catIds = array_keys($categories);
+        $results = $this->_getResultsByFSCategories($catIds);
+        $finals = $this->_getFinalResultsByFSCategories($catIds);
+
+        $chart = array();
+
+        if (!empty($results)) {
+
+            foreach ($results as $playerId => $categories) {
+
+                $chart[$playerId] = array(
+                                        'total'  =>  0,
+                                        'normal' =>  0,
+                                        'final'  =>  0,
+                                        'number_of_winnings' => 0,
+                                        'number_of_tournaments' => 0
+                );
+                $tourCounter = 0;
+
+                if (!empty($categories)) {
+
+                    // check, if there is at most 3 tournaments
+                    foreach ($categories as $tournamentId => $category) {
+
+                        if ($tourCounter < 3) {
+                            $chart[$playerId]['total'] += $category['letsgolf_fs'];
+                            $chart[$playerId]['normal'] += $category['letsgolf_fs'];
+                        }
+
+                        if ($category['letsgolf_fs'] == 15) {
+                            $chart[$playerId]['number_of_winnings']++;
+                        }
+                        $chart[$playerId]['number_of_tournaments']++;
+                        $tourCounter++;
+                    }
+
+                    // base complete (at most 3 tours)
+
+                    // add final
+                    if (isset($finals[$playerId])) {
+                        $chart[$playerId]['total'] += $category['letsgolf_fs'];
+                        $chart[$playerId]['final'] = $category['letsgolf_fs'];
+                        $chart[$playerId]['number_of_tournaments']++;
+
+                        if ($category['letsgolf_fs'] == 30) {
+                            $chart[$playerId]['number_of_winnings']++;
+                        }
+                    }
+                }
+
+
+            }
+
+
+        }
+
+        uasort($chart, array($this, 'fsSortMethod'));
+
+        print_r($chart);
+        echo 'Died in ' . __METHOD__ . ' in line: ' . __LINE__;
+//        die();
+        return $chart;
+
     }
 }
