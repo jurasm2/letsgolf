@@ -1129,7 +1129,15 @@ class DbModel {
 
     }
 
-    public function getTournamentResults($tournamentId, $premium = FALSE) {
+    public function getTournamentResults($tournamentId, $premium = FALSE, $fs = FALSE) {
+
+        // classic sorting
+        $sorting = '[r].[letsgolf_total] DESC';
+        if ($premium) {
+            $sorting = '[r].[letsgolf_premium_netto] DESC';
+        } else if ($fs) {
+            $sorting = '[r].[letsgolf_fs] DESC';
+        }
 
         return $this->connection->query('SELECT
                                         [r].*, [p].*, [c].[name] as [categoryname]
@@ -1152,13 +1160,9 @@ class DbModel {
                                         ORDER BY
                                             [c].[category_id] ASC,
                                             [r].[hcp_status] DESC,
-					    %if
-					    [r].[letsgolf_premium_netto] DESC,
-					    %else
-                                            [r].[letsgolf_total] DESC,
-					    %end
+					    %sql,
                                             [r].[hcp_before] ASC
-                                    ', $tournamentId, $premium)->fetchAssoc('category_id,player_id');
+                                    ', $tournamentId, $sorting)->fetchAssoc('category_id,player_id');
 
     }
 

@@ -1316,13 +1316,22 @@ class Cgf {
         return WEBROOT.'www/pdf/tournament-'.$tournamentId.'.pdf';
     }
 
+    protected function isFallSeries($tournament) {
+        if ($tournament['play_date'] instanceof \DateTime) {
+            return $tournament['play_date'] >= new \DateTime('2013-09-28');
+        }
+        return false;
+    }
+
     public function renderTournamentResults($tournamentId, $pdfMode = FALSE) {
 
         $tournament = $this->dbModel->getTournamentById($tournamentId);
 
 	if ($tournament) {
 
-		$results = $this->dbModel->getTournamentResults($tournamentId, $tournament['premium']);
+                $results = $this->dbModel->getTournamentResults($tournamentId,
+                                                                $tournament['premium'],
+                                                                $this->isFallSeries($tournament));
 		$categories = $this->dbModel->getTournamentCategories($tournamentId);
 
 		if (!empty($results) && !empty($categories)): ?>
@@ -1340,6 +1349,8 @@ class Cgf {
 						<th class="tcislo">Číslo</th>
 						<? if ($tournament['premium']): ?>
 						<th class="tpts">Netto</th>
+                                                <? elseif ($this->isFallSeries($tournament)): ?>
+                                                <th class="tpts">Body</th>
 						<? else: ?>
 						<th class="tpts">Brutto</th>
 						<th class="tpts">Netto</th>
@@ -1355,6 +1366,8 @@ class Cgf {
 						    <td class="tcislo"><?= $playerResults['member_number']; ?></td>
 						    <? if ($tournament['premium']): ?>
 						    <td class="tpts"><?= $playerResults['letsgolf_premium_netto']; ?></td>
+                                                    <? elseif ($this->isFallSeries($tournament)): ?>
+                                                    <td class="tpts"><?= $playerResults['letsgolf_fs']; ?></td>
 						    <? else: ?>
 						    <td class="tpts"><?= $playerResults['letsgolf_brutto']; ?></td>
 						    <td class="tpts"><?= $playerResults['letsgolf_netto']; ?></td>
