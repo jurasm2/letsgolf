@@ -467,7 +467,7 @@ class DbModel {
      *
      * @param type $points
      * @param type $tournamentType
-     * @param type $foreignCourse
+     * @param bool $foreignCourse
      * @return type
      */
     public function parsePoints($points, $category, $foreignCourse = FALSE) {
@@ -478,20 +478,21 @@ class DbModel {
         $netto = 0;
         $brutto = 0;
 
-        if (preg_match('#([0-9]+|-+)\ \/\ ([0-9]+|-+)\ \/\ \(([0-9]+|-+)\)#', $points, $matches)) {
-            $netto = (int) $matches[3];
-            $brutto = (int) $matches[1];
-        }
+//        if (preg_match('#([0-9]+|-+)\ \/\ ([0-9]+|-+)\ \/\ \(([0-9]+|-+)\)#', $points, $matches)) {
+//            $netto = (int) $matches[3];
+//            $brutto = (int) $matches[1];
+//        }
 
         return array(
                 'netto'     =>  $netto,
                 'brutto'    =>  $brutto,
                 'letsgolf_netto'     =>  ($tournamentType == 'normal') ? $netto : (($tournamentType == 'final') ? ($netto * 2) : ($netto * 1.5) ),
                 'letsgolf_brutto'    =>  ($tournamentType == 'normal') ? $brutto : (($tournamentType == 'final') ? ($brutto * 2) : ($brutto * 1.5) ),
-                'letsgolf_premium_netto' => $foreignCourse ? ($netto * 1.5) : $netto
+                'letsgolf_premium_netto' => $foreignCourse ? ($netto * 1.5) : $netto,
         );
 
     }
+
 
     public function importResults($data) {
         return $this->connection->query('INSERT INTO [cgf_results] %ex', $data);
@@ -900,7 +901,7 @@ class DbModel {
 
         $season = $this->getSeasonByYear($year);
 
-        if (!empty($season) && $type != 'fallSeries') {
+        if (!empty($season)) {
 
             $chart = $this->connection->query('SELECT
                                                     [c].*, [p].*
@@ -1128,7 +1129,15 @@ class DbModel {
 
     }
 
-    public function getTournamentResults($tournamentId, $premium = FALSE) {
+    public function getTournamentResults($tournamentId, $premium = FALSE, $fs = FALSE) {
+
+        // classic sorting
+        $sorting = '[r].[letsgolf_total] DESC';
+        if ($premium) {
+            $sorting = '[r].[letsgolf_premium_netto] DESC';
+        } else if ($fs) {
+            $sorting = '[r].[letsgolf_fs] DESC';
+        }
 
         return $this->connection->query('SELECT
                                         [r].*, [p].*, [c].[name] as [categoryname]
@@ -1151,13 +1160,9 @@ class DbModel {
                                         ORDER BY
                                             [c].[category_id] ASC,
                                             [r].[hcp_status] DESC,
-					    %if
-					    [r].[letsgolf_premium_netto] DESC,
-					    %else
-                                            [r].[letsgolf_total] DESC,
-					    %end
+					    %sql,
                                             [r].[hcp_before] ASC
-                                    ', $tournamentId, $premium)->fetchAssoc('category_id,player_id');
+                                    ', $tournamentId, $sorting)->fetchAssoc('category_id,player_id');
 
     }
 
@@ -1336,17 +1341,32 @@ class DbModel {
                                         ', $tournamentId)->fetchAll();
     }
 
+    protected function formatOrder($position) {
+        $orderFrom = $orderTo = (int) $position;
+        if (preg_match('~^([0-9]+)\ *-\ *([0-9]+)$~', $position, $matches)) {
+            $orderFrom = (int) $matches[1];
+            $orderTo = (int) $matches[2];
+        }
+        return array($orderFrom, $orderTo);
+    }
+
     public function formatPostDataAsResults($categoryId, $postData) {
 
-//        print_r($postData);
-//        die();
 
         if ($postData['category_id'] != $categoryId) return NULL;
 
+        $orderFrom = NULL;
+        $orderTo = NULL;
+
+        // position may not be posted
+        if (isset($postData['order'])) {
+            list($orderFrom, $orderTo) = $this->formatOrder($postData['order']);
+        }
+
         $results['MEMBERNUMBER'] = $postData['member_number'];
         $results['FULLNAME'] = mb_strtoupper($postData['surname'], 'UTF-8') . ' ' . $postData['firstname'];
-        $results['ORDER_FROM'] = NULL;
-        $results['ORDER_TO'] = NULL;
+        $results['ORDER_FROM'] = $orderFrom;
+        $results['ORDER_TO'] = $orderTo;
         $results['HCPSTATUS'] = 'ACTIVE';
         $results['HCP_BEFORE'] = NULL;
         $results['HCP_RES'] = NULL;
@@ -1354,6 +1374,7 @@ class DbModel {
 
         $results['firstname'] = $postData['firstname'];
         $results['surname'] = $postData['surname'];
+        $results['letsgolf_fs'] = $postData['letsgolf_fs'];
 
         return array(0 => $results);
     }
@@ -1383,7 +1404,10 @@ class DbModel {
                                             [p].[surname],
                                             [r].[netto],
                                             [r].[brutto],
-                                            [r].[category_id]
+                                            [r].[category_id],
+                                            [r].[order_from],
+                                            [r].[order_to],
+                                            [r].[letsgolf_fs]
                                             FROM
                                                 [cgf_results] [r]
                                             JOIN
